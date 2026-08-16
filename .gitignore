@@ -1,0 +1,18 @@
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Node (caso adicione ferramentas de build no futuro)
+node_modules/
+
+# Python (caso adicione backend no futuro)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
