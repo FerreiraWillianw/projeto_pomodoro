@@ -6,6 +6,94 @@
     <title>Document</title>
 </head>
 <body>
+
+    <div id="app">
+        <div id="estado">Foco</div>
+        <div id="tempo">25:00</div>
+        <button id="btnComecar">Começar</button>
+        <button id="btnReiniciar">Reiniciar</button>
+    </div>
+
+
+    <script>
+        const btnComecar = document.getElementById('btnComecar');
+        const btnReiniciar = document.getElementById('btnReiniciar');
+        const tempoElemento = document.getElementById('tempo');
+        const estadoElemento = document.getElementById('estado');
+
+        const DURACAO_FOCO = 25 * 60;
+        const DURACAO_PAUSA_CURTA = 5 * 60;
+        const DURACAO_PAUSA_LONGA = 15 * 60;
+        const CICLOS_ANTES_PAUSA_LONGA = 4;
+
+        let tipoSessao = 'foco';
+        let pomodorosCompletos = 0
+        let segundosRestantes = DURACAO_FOCO;
+        let intervaloId = null;
+
+        function atualizarTela() {
+            const minutos = Math.floor(segundosRestantes / 60);
+            const segundos = segundosRestantes % 60;
+            const minutosTexto = String(minutos).padStart(2, '0');
+            const segundosTexto = String(segundos).padStart(2, '0');
+            tempoElemento.textContent = minutosTexto + ':' + segundosTexto;
+
+            if (tipoSessao === 'foco') {
+                estadoElemento.textContent = 'Foco';
+            } else if (tipoSessao === 'pausaCurta') {
+                estadoElemento.textContent = 'Pausa curta';
+            }
+
+            estadoElemento.textContent = tipoSessao === 'foco' ? 'Foco' : 'Pausa';
+        }
+
+        function pausar() {
+            clearInterval(intervaloId);
+            intervaloId = null;
+            btnComecar.textContent = 'Começar';
+        }
+
+        function trocarSessao() {
+            if (tipoSessao === 'foco') {
+                tipoSessao = 'pausa';
+                segundosRestantes = DURACAO_PAUSA_CURTA;
+            } else {
+                tipoSessao = 'foco';
+                segundosRestantes = DURACAO_FOCO;
+            }
+            atualizarTela();
+        }
+
+        function tick() {
+            segundosRestantes = segundosRestantes - 1;
+            atualizarTela();
+
+            if (segundosRestantes <= 0) {
+                pausar();
+                trocarSessao();
+            }
+        }        
+
+        btnComecar.addEventListener('click', function() {
+            const estaRodando = intervaloId !== null;
+
+            if (estaRodando) {
+                pausar();
+            } else {
+                intervaloId = setInterval(tick, 1000);
+                btnComecar.textContent = 'Pausar';
+            }
+        });
+
+        btnReiniciar.addEventListener('click', function() {
+            pausar();
+            tipoSessao = 'foco';
+            segundosRestantes = DURACAO_FOCO;
+            atualizarTela();
+        });
+
+        atualizarTela();
+    </script>
     
 </body>
 </html>
