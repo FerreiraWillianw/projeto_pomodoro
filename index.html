@@ -335,7 +335,7 @@
     <div class="stats-line" id="statsLine">hoje: <b>0</b> pomodoros · total: <b>0</b></div>
 
     <details class="settings">
-        <summary>ajustar durações</summary>
+        <summary id="settingsSummary">ajustar durações</summary>
         <div class="settings-grid">
         <label for="workInput">Foco (min)</label>
         <input type="number" id="workInput" min="1" max="90" value="25">
@@ -375,10 +375,31 @@
         },
         loadStats(){
             try{
-            const raw = localStorage.getItem(this.KEYS.stats);
-            return raw ? JSON.parse(raw) : { total: 0, byDay: {} };
-            }catch(e){ return { total: 0, byDay: {} }; }
+                const raw = localStorage.getItem(this.KEYS.stats);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    // Se for o formato antigo (só total e byDay), converte
+                    if (data.total !== undefined && !data.pomodoro) {
+                        return {
+                            pomodoro: { total: data.total || 0, byDay: data.byDay || {} },
+                            fiftyTwoSeventeen: { total: 0, byDay: {} }
+                        };
+                    }
+                    return data;
+                }
+                // Formato novo (vazio)
+                return { 
+                    pomodoro: { total: 0, byDay: {} },
+                    fiftyTwoSeventeen: { total: 0, byDay: {} }
+                };
+            }catch(e){ 
+                return { 
+                    pomodoro: { total: 0, byDay: {} },
+                    fiftyTwoSeventeen: { total: 0, byDay: {} }
+                };
+            }
         },
+
         saveStats(stats){
             try{ localStorage.setItem(this.KEYS.stats, JSON.stringify(stats)); }
             catch(e){ console.warn('Não foi possível salvar as estatísticas', e); }
@@ -613,13 +634,20 @@
             }
         }
 
+        // PRIMEIRO: define a função todayKey
         function todayKey(){
             return new Date().toISOString().slice(0, 10);
         }
 
         function renderStats(stats){
-            const today = stats.byDay[todayKey()] || 0;
-            els.stats.innerHTML = `hoje: <b>${today}</b> pomodoros · total: <b>${stats.total}</b>`;
+            const technique = currentTechnique;  // ← Verifique se esta variável existe
+            const key = todayKey();
+            
+            const today = stats[technique].byDay[key] || 0;
+            const total = stats.pomodoro.total + stats.fiftyTwoSeventeen.total;
+            
+            const label = technique === 'pomodoro' ? 'pomodoros' : 'ciclos 52/17';
+            els.stats.innerHTML = `hoje: <b>${today}</b> ${label} · total: <b>${total}</b>`;
         }
 
         function render(engine){
@@ -688,21 +716,28 @@
         els.cyclesInput.value = settings.cyclesBeforeLong;
 
         const engine = new TimerEngine(
-        settings,
-        (e) => render(e),
-        (wasWork) => {
-            playBeep();
-            if(wasWork){
-                stats.total += 1;
-                const key = todayKey();
-                stats.byDay[key] = (stats.byDay[key] || 0) + 1;
-                Storage.saveStats(stats);
-                renderStats(stats);
-                notify('Pomodoro concluído', 'Hora de uma pausa.');
-            } else {
-                notify('Pausa concluída', 'Hora de voltar ao foco.');
+            settings,
+            (e) => render(e),
+            (wasWork) => {
+                playBeep();
+                if(wasWork){
+                    // Recarrega os stats para garantir que está atualizado
+                    stats = Storage.loadStats();
+                    
+                    const technique = currentTechnique;
+                    stats[technique].total += 1;
+                    const key = todayKey();
+                    stats[technique].byDay[key] = (stats[technique].byDay[key] || 0) + 1;
+                    
+                    Storage.saveStats(stats);
+                    renderStats(stats);
+                    render(engine);
+                    
+                    notify('Pomodoro concluído', 'Hora de uma pausa.');
+                } else {
+                    notify('Pausa concluída', 'Hora de voltar ao foco.');
+                }
             }
-        }
         );
 
         renderStats(stats);
@@ -758,7 +793,34 @@
                 tab.classList.toggle('active', tab.dataset.technique === key);
             });
 
-            document.querySelector('.eyebrow').textContent = profile.eyebrow;
+            const eyebrow = document.getElementById('eyebrow');
+            if (eyebrow) {
+                eyebrow.textContent = key === 'pomodoro' ? 'TÉCNICA POMODORO' : 'TÉCNICA 52/17';
+            }
+
+            const settingsDetails = document.querySelector('.settings');
+            
+            if (key === 'fiftyTwoSeventeen') {
+                // Esconde completamente
+                settingsDetails.style.display = 'none';
+                settingsDetails.classList.add('hidden');
+                
+                els.workInput.disabled = true;
+                els.shortInput.disabled = true;
+                els.longInput.disabled = true;
+                els.cyclesInput.disabled = true;
+            } else {
+                // Mostra novamente
+                settingsDetails.style.display = '';
+                settingsDetails.classList.remove('hidden');
+                
+                els.workInput.disabled = false;
+                els.shortInput.disabled = false;
+                els.longInput.disabled = false;
+                els.cyclesInput.disabled = false;
+            }
+
+            renderStats(stats);
         }
 
         [els.workInput, els.shortInput, els.longInput, els.cyclesInput].forEach(input => {
