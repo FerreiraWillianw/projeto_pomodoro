@@ -664,29 +664,41 @@
         }
 
         function renderSeeds(cyclesBeforeLong, cycleIndex){
-            if (cyclesBeforeLong >= 999) {
-                els.seeds.innerHTML = '';
-                return
+            // Deep Work: mostra contador de sprints
+            if (currentTechnique === 'deepWork') {
+                if (cycleIndex > 0) {
+                    els.seeds.innerHTML = `
+                        <div style="font-family: var(--font-mono); color: var(--tomate); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                            <span>🎯</span>
+                            ${cycleIndex} ${cycleIndex === 1 ? 'sprint completo' : 'sprints completos'}
+                        </div>
+                    `;
+                } else {
+                    els.seeds.innerHTML = `
+                        <div style="font-family: var(--font-mono); color: var(--ink-dim); font-size: 13px;">
+                            🚀 aguardando primeiro sprint
+                        </div>
+                    `;
+                }
+                return;
             }
 
-            // Definindo o SVG do tomate (pode ser customizado)
+            // 52/17: sem tomates (já existente)
+            if (cyclesBeforeLong >= 999) {
+                els.seeds.innerHTML = '';
+                return;
+            }
+
+            // Pomodoro: tomates (código existente)
             const tomatoSVG = `
             <svg viewBox="0 0 30 30" width="28" height="28">
-                <!-- Corpo do tomate -->
                 <ellipse cx="15" cy="19" rx="10" ry="12" fill="%TOMATO_COLOR%"/>
-                <!-- Brilho -->
                 <ellipse cx="12" cy="15" rx="4" ry="5" fill="rgba(255,255,255,0.2)"/>
-                <!-- Sombra interna -->
                 <ellipse cx="16" cy="22" rx="6" ry="4" fill="rgba(180,40,20,0.15)"/>
-                <!-- Folha 1 -->
                 <path d="M11 8 C12 5, 14 4, 15 6" stroke="#4caf50" stroke-width="1.5" fill="none"/>
-                <!-- Folha 2 -->
                 <path d="M15 6 C16 4, 18 5, 19 8" stroke="#4caf50" stroke-width="1.5" fill="none"/>
-                <!-- Folha 3 (menor) -->
                 <path d="M13 7 C14 5, 16 5, 17 7" stroke="#66bb6a" stroke-width="1.5" fill="none"/>
-                <!-- Haste -->
                 <line x1="15" y1="6" x2="15" y2="3" stroke="#4caf50" stroke-width="2"/>
-                <!-- Círculo da haste -->
                 <circle cx="15" cy="3" r="1.5" fill="#4caf50"/>
             </svg>`;
             
@@ -695,12 +707,11 @@
                 const seed = document.createElement('div');
                 seed.className = 'seed' + (i < cycleIndex ? ' filled' : '');
                 
-                // Substitui a cor do tomate baseado no status
                 let svg = tomatoSVG;
                 if (i < cycleIndex) {
-                    svg = svg.replace(/%TOMATO_COLOR%/, '#e8503a'); // Tomate maduro
+                    svg = svg.replace(/%TOMATO_COLOR%/, '#e8503a');
                 } else {
-                    svg = svg.replace(/%TOMATO_COLOR%/, '#6b2c22'); // Tomate verde/escuro
+                    svg = svg.replace(/%TOMATO_COLOR%/, '#6b2c22');
                 }
                 
                 seed.innerHTML = svg;
