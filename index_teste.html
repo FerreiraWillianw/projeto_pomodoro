@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+    <style>
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-color: #1b1815;
+            color: #f2ede4;
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+
+        button {
+            font-family: sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+
+        .btn-primario {
+            background-color: #e8503a;
+            color: #1b1815;
+        }
+
+        .btn-primario:hover {
+            background-color: #f06349;
+        }
+
+        .btn-secundario {
+            background-color: transparent;
+            color: #a9a196;
+        }
+
+        .btn-secundario:hover {
+            background-color: #2c2721;
+            color: #f2ede4;
+        }
+
+        .dial-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+
+        .dial-container svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .anel-fundo {
+            fill: none;
+            stroke: #35302a;
+            stroke-width: 10;
+        }
+
+        #tempo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #anelProgresso {
+            fill: none;
+            stroke: #e8503a;
+            stroke-width: 10;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        #sementes {
+            display: flex;
+            gap: 8px;
+        }
+
+        .semente {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #6b2c22;
+            transition: background-color 0.3s ease;
+        }
+
+        .semente.preenchida {
+            background-color: #e8503a;
+        }
+
+
+    </style>
+<body>
+
+    <div id="app">
+        <div id="estado">Foco</div>
+
+        <div class="dial-container">
+            <svg viewBox="0 0 300 300">
+                <circle class="anel-fundo" cx="150" cy="150" r="130"></circle>
+                <circle id="anelProgresso" cx="150" cy="150" r="130"></circle>
+            </svg>
+            <div id="tempo">25:00</div>
+        </div>
+
+        <div id="sementes"></div>
+        <button id="btnComecar" class="btn-primario">Começar</button>
+        <button id="btnReiniciar"class=btn-secundario>Reiniciar</button>
+    </div>
+
+
+    <script>
+        const sementesElemento = document.getElementById('sementes');
+
+        const btnComecar = document.getElementById('btnComecar');
+        const btnReiniciar = document.getElementById('btnReiniciar');
+        const tempoElemento = document.getElementById('tempo');
+        const estadoElemento = document.getElementById('estado');
+
+        const anelProgresso = document.getElementById('anelProgresso');
+        const RAIO = 130;
+        const CIRCUNFERENCIA = 2 * Math.PI * RAIO;
+
+        anelProgresso.style.strokeDasharray = CIRCUNFERENCIA;
+
+        const DURACAO_FOCO = 25 * 60;
+        const DURACAO_PAUSA_CURTA = 5 * 60;
+        const DURACAO_PAUSA_LONGA = 15 * 60;
+        const CICLOS_ANTES_PAUSA_LONGA = 4;
+
+        let tipoSessao = 'foco'; // 'foco', 'pausaCurta' ou 'pausaLonga'
+        let pomodorosCompletos = 0;
+        let segundosRestantes = DURACAO_FOCO;
+        let intervaloId = null;
+
+        function atualizarTela() {
+            const minutos = Math.floor(segundosRestantes / 60);
+            const segundos = segundosRestantes % 60;
+            const minutosTexto = String(minutos).padStart(2, '0');
+            const segundosTexto = String(segundos).padStart(2, '0');
+            tempoElemento.textContent = minutosTexto + ':' + segundosTexto;
+
+            if (tipoSessao === 'foco') {
+            estadoElemento.textContent = 'Foco';
+            } else if (tipoSessao === 'pausaCurta') {
+            estadoElemento.textContent = 'Pausa curta';
+            } else {
+            estadoElemento.textContent = 'Pausa longa';
+            }
+
+            const duracaoTotal = duracaoAtual();
+            const fracaoRestante = segundosRestantes / duracaoTotal;
+            anelProgresso.style.strokeDashoffset = CIRCUNFERENCIA * (1 - fracaoRestante);
+
+            atualizarSementes();
+        }
+
+        function atualizarSementes() {
+            sementesElemento.innerHTML = '';
+
+            for (let i = 0; i < CICLOS_ANTES_PAUSA_LONGA; i++) {
+                const semente = document.createElement('div');
+                semente.className = 'semente';
+
+                if (i < pomodorosCompletos % CICLOS_ANTES_PAUSA_LONGA || (pomodorosCompletos > 0 && pomodorosCompletos % CICLOS_ANTES_PAUSA_LONGA === 0 && tipoSessao === 'pausaLonga')) {
+                    semente.className = 'semente preenchida';
+                }
+
+                sementesElemento.appendChild(semente);
+            }
+        }
+
+        function duracaoAtual() {
+            if (tipoSessao === 'foco') return DURACAO_FOCO;
+            if (tipoSessao === 'pausaCurta') return DURACAO_PAUSA_CURTA;
+            return DURACAO_PAUSA_LONGA;
+        }
+
+        function pausar() {
+            clearInterval(intervaloId);
+            intervaloId = null;
+            btnComecar.textContent = 'Começar';
+        }
+
+        function trocarSessao() {
+            if (tipoSessao === 'foco') {
+            pomodorosCompletos = pomodorosCompletos + 1;
+
+            if (pomodorosCompletos % CICLOS_ANTES_PAUSA_LONGA === 0) {
+                tipoSessao = 'pausaLonga';
+                segundosRestantes = DURACAO_PAUSA_LONGA;
+            } else {
+                tipoSessao = 'pausaCurta';
+                segundosRestantes = DURACAO_PAUSA_CURTA;
+            }
+            } else {
+            tipoSessao = 'foco';
+            segundosRestantes = DURACAO_FOCO;
+            }
+            atualizarTela();
+        }
+
+        function tick() {
+            segundosRestantes = segundosRestantes - 1;
+            atualizarTela();
+
+            if (segundosRestantes <= 0) {
+            pausar();
+            trocarSessao();
+            }
+        }
+
+        btnComecar.addEventListener('click', function() {
+            const estaRodando = intervaloId !== null;
+
+            if (estaRodando) {
+            pausar();
+            } else {
+            intervaloId = setInterval(tick, 1000);
+            btnComecar.textContent = 'Pausar';
+            }
+        });
+
+        btnReiniciar.addEventListener('click', function() {
+            pausar();
+            tipoSessao = 'foco';
+            segundosRestantes = DURACAO_FOCO;
+            atualizarTela();
+        });
+
+        atualizarTela();
+    </script>
+    
+</body>
+</html>

@@ -1,106 +1,669 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foco — temporizador Pomodoro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+    :root{
+        --bg: #1b1815;
+        --bg-raised: #24201b;
+        --ink: #f2ede4;
+        --ink-dim: #a9a196;
+        --tomate: #e8503a;
+        --tomate-dim: #6b2c22;
+        --folha: #7a8b5e;
+        --folha-dim: #3a4230;
+        --aviso: #e8b84b;
+        --ring-track: #35302a;
+        --radius-lg: 28px;
+        --radius-md: 14px;
+        --font-display: 'Space Grotesk', sans-serif;
+        --font-body: 'Inter', sans-serif;
+        --font-mono: 'IBM Plex Mono', monospace;
+    }
+
+    *{ box-sizing: border-box; }
+
+    body{
+        margin:0;
+        min-height:100vh;
+        background: var(--bg);
+        background-image:
+        radial-gradient(circle at 20% -10%, rgba(232,80,58,0.10), transparent 45%),
+        radial-gradient(circle at 90% 110%, rgba(122,139,94,0.08), transparent 40%);
+        color: var(--ink);
+        font-family: var(--font-body);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding: 24px;
+    }
+
+    .app{
+        width: 100%;
+        max-width: 420px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content: center;
+        gap: 28px;
+    }
+
+    .eyebrow{
+        font-family: var(--font-mono);
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+    }
+
+    .state-label{
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 20px;
+        transition: color .3s ease;
+    }
+    .state-label.work{ color: var(--tomate); }
+    .state-label.shortBreak{ color: var(--folha); }
+    .state-label.longBreak{ color: var(--folha); }
+
+    /* ---- dial ---- */
+    .dial-wrap{
+        position: relative;
+        width: 300px;
+        height: 300px;
+        display: flex;           /* ADICIONE */
+        align-items: center;     /* ADICIONE */
+        justify-content: center; /* ADICIONE */
+    }
+    .dial-wrap svg{ width:100%; height:100%; transform: rotate(-90deg); }
+
+    .ring-track{ fill:none; stroke: var(--ring-track); stroke-width: 10; }
+    .ring-progress{
+        fill:none;
+        stroke: var(--tomate);
+        stroke-width: 10;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1s linear, stroke .3s ease;
+    }
+    .ring-progress.shortBreak, .ring-progress.longBreak{ stroke: var(--folha); }
+
+    .tick{ stroke: var(--ink-dim); opacity: 0.35; }
+    .tick.major{ opacity: 0.6; }
+
+    .dial-center{
+        position:absolute; 
+        inset:0;
+        display:flex; 
+        flex-direction:column;
+        align-items:center; 
+        justify-content:center;
+        gap: 6px;
+        /* ADICIONE ESTAS LINHAS */
+        left: 50%;
+        transform: translateX(-50%);
+        width: auto;
+    }
+    .time{
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 64px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+    }
+    .cycle-note{
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--ink-dim);
+    }
+
+    /* ---- seeds (session progress) ---- */
+    .seeds{
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        align-items: flex-end;
+        min-height: 40px;
+    }
+
+    .seed{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        transition: all .3s ease;
+        cursor: default;
+    }
+
+    /* Animação para tomates preenchidos */
+    .seed.filled {
+        animation: bounceTomato 0.5s ease;
+    }
+
+    @keyframes bounceTomato {
+        0% { transform: scale(0) rotate(-180deg); }
+        60% { transform: scale(1.3) rotate(10deg); }
+        80% { transform: scale(0.9) rotate(-5deg); }
+        100% { transform: scale(1) rotate(0deg); }
+    }
+
+    /* Efeito hover nos tomates */
+    .seed:hover {
+        transform: scale(1.1);
+    }
+
+    /* Tomate vazio (desbotado) */
+    .seed:not(.filled) {
+        opacity: 0.6;
+        filter: grayscale(0.4) brightness(0.7);
+    }
+
+    /* Tomate preenchido com brilho */
+    .seed.filled {
+        filter: drop-shadow(0 2px 8px rgba(232, 80, 58, 0.3));
+    }
+
+    /* ---- controls ---- */
+    .controls{
+        display:flex;
+        gap: 12px;
+        margin-right: 16px;
+    }
+    button{
+        font-family: var(--font-body);
+        font-weight: 600;
+        font-size: 14px;
+        border: none;
+        border-radius: 999px;
+        padding: 14px 26px;
+        cursor: pointer;
+        color: var(--ink);
+        background: var(--bg-raised);
+        transition: background .2s ease, transform .1s ease;
+    }
+    button:hover{ background: #2c2721; }
+    button:active{ transform: scale(0.97); }
+    button:focus-visible{ outline: 2px solid var(--tomate); outline-offset: 2px; }
+
+    .btn-primary{
+        background: var(--tomate);
+        color: #1b1815;
+        padding: 14px 34px;
+    }
+    .btn-primary:hover{ background: #f06349; }
+
+    .btn-ghost{
+        background: transparent;
+        color: var(--ink-dim);
+        padding: 14px 18px;
+    }
+    .btn-ghost:hover{ background: var(--bg-raised); color: var(--ink); }
+
+    /* ---- settings ---- */
+    details.settings{
+        width:100%;
+    }
+    details.settings summary{
+        font-family: var(--font-mono);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+        cursor: pointer;
+        text-align:center;
+        list-style: none;
+        user-select: none;
+    }
+    details.settings summary::-webkit-details-marker{ display:none; }
+    details.settings summary:hover{ color: var(--ink); }
+
+    .settings-grid{
+        margin-top: 18px;
+        background: var(--bg-raised);
+        border-radius: var(--radius-md);
+        padding: 18px;
+        display:grid;
+        grid-template-columns: 1fr auto;
+        row-gap: 14px;
+        column-gap: 12px;
+        align-items:center;
+    }
+    .settings-grid label{ font-size: 13px; color: var(--ink-dim); }
+    .settings-grid input[type=number]{
+        width: 64px;
+        background: var(--bg);
+        border: 1px solid var(--ring-track);
+        color: var(--ink);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-family: var(--font-mono);
+        font-size: 14px;
+        text-align:center;
+    }
+    .settings-grid input:focus-visible{ outline: 2px solid var(--tomate); }
+
+    .stats-line{
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--ink-dim);
+        text-align:center;
+    }
+    .stats-line b{ color: var(--tomate); font-weight: 500; }
+
+    @media (prefers-reduced-motion: reduce){
+        .ring-progress{ transition: none; }
+        .seed{ transition: none; }
+        button{ transition: none; }
+    }
+
+    @media (max-width: 380px){
+        .dial-wrap{ width: 260px; height: 260px; }
+        .time{ font-size: 52px; }
+    }
+    </style>
 </head>
 <body>
 
-    <div id="app">
-        <div id="estado">Foco</div>
-        <div id="tempo">25:00</div>
-        <button id="btnComecar">Começar</button>
-        <button id="btnReiniciar">Reiniciar</button>
+    <div class="app">
+    <div class="eyebrow">TÉCNICA POMODORO</div>
+
+    <div class="state-label work" id="stateLabel">Foco</div>
+
+    <div class="dial-wrap">
+        <svg viewBox="0 0 300 300">
+        <circle class="ring-track" cx="150" cy="150" r="130"></circle>
+        <g id="ticks"></g>
+        <circle class="ring-progress work" id="ringProgress" cx="150" cy="150" r="130"></circle>
+        </svg>
+        <div class="dial-center">
+        <div class="time" id="timeDisplay">25:00</div>
+        <div class="cycle-note" id="cycleNote">ciclo 1 de 4</div>
+        </div>
     </div>
 
+    <div class="seeds" id="seeds"></div>
+
+    <div class="controls">
+        <button class="btn-ghost" id="resetBtn">reiniciar</button>
+        <button class="btn-primary" id="startBtn">começar</button>
+        <button class="btn-ghost" id="skipBtn">pular</button>
+    </div>
+
+    <div class="stats-line" id="statsLine">hoje: <b>0</b> pomodoros · total: <b>0</b></div>
+
+    <details class="settings">
+        <summary>ajustar durações</summary>
+        <div class="settings-grid">
+        <label for="workInput">foco (min)</label>
+        <input type="number" id="workInput" min="1" max="90" value="25">
+
+        <label for="shortInput">pausa curta (min)</label>
+        <input type="number" id="shortInput" min="1" max="30" value="5">
+
+        <label for="longInput">pausa longa (min)</label>
+        <input type="number" id="longInput" min="1" max="60" value="15">
+
+        <label for="cyclesInput">ciclos até pausa longa</label>
+        <input type="number" id="cyclesInput" min="1" max="12" value="4">
+        </div>
+    </details>
+    </div>
 
     <script>
-        const btnComecar = document.getElementById('btnComecar');
-        const btnReiniciar = document.getElementById('btnReiniciar');
-        const tempoElemento = document.getElementById('tempo');
-        const estadoElemento = document.getElementById('estado');
+    /* =========================================================
+    CAMADA DE ARMAZENAMENTO
+    Hoje: localStorage. No futuro, para sincronizar entre
+    dispositivos, troque save()/load() por chamadas fetch()
+    a uma API (ex: FastAPI) sem mexer no resto do código —
+    é por isso que essa camada fica isolada aqui.
+    ========================================================= */
+    const Storage = {
+    KEYS: { settings: 'foco.settings', stats: 'foco.stats' },
 
-        const DURACAO_FOCO = 25 * 60;
-        const DURACAO_PAUSA_CURTA = 5 * 60;
-        const DURACAO_PAUSA_LONGA = 15 * 60;
-        const CICLOS_ANTES_PAUSA_LONGA = 4;
+    loadSettings(){
+        try{
+        const raw = localStorage.getItem(this.KEYS.settings);
+        return raw ? JSON.parse(raw) : null;
+        }catch(e){ return null; }
+    },
+    saveSettings(settings){
+        try{ localStorage.setItem(this.KEYS.settings, JSON.stringify(settings)); }
+        catch(e){ console.warn('Não foi possível salvar as configurações', e); }
+    },
+    loadStats(){
+        try{
+        const raw = localStorage.getItem(this.KEYS.stats);
+        return raw ? JSON.parse(raw) : { total: 0, byDay: {} };
+        }catch(e){ return { total: 0, byDay: {} }; }
+    },
+    saveStats(stats){
+        try{ localStorage.setItem(this.KEYS.stats, JSON.stringify(stats)); }
+        catch(e){ console.warn('Não foi possível salvar as estatísticas', e); }
+    }
+    };
 
-        let tipoSessao = 'foco'; // 'foco', 'pausaCurta' ou 'pausaLonga'
-        let pomodorosCompletos = 0;
-        let segundosRestantes = DURACAO_FOCO;
-        let intervaloId = null;
+    /* =========================================================
+    MOTOR DO TEMPORIZADOR
+    Máquina de estados simples: idle -> running <-> paused
+    Tipos de sessão: work, shortBreak, longBreak
+    ========================================================= */
+    class TimerEngine{
+    constructor(settings, onTick, onComplete){
+        this.settings = settings;
+        this.onTick = onTick;
+        this.onComplete = onComplete;
+        this.sessionType = 'work';
+        this.cycleIndex = 0; // pomodoros completos no ciclo atual
+        this.remaining = this.durationFor('work');
+        this.status = 'idle'; // idle | running | paused
+        this._intervalId = null;
+    }
 
-        function atualizarTela() {
-            const minutos = Math.floor(segundosRestantes / 60);
-            const segundos = segundosRestantes % 60;
-            const minutosTexto = String(minutos).padStart(2, '0');
-            const segundosTexto = String(segundos).padStart(2, '0');
-            tempoElemento.textContent = minutosTexto + ':' + segundosTexto;
+    durationFor(type){
+        const s = this.settings;
+        if(type === 'work') return s.workMin * 60;
+        if(type === 'shortBreak') return s.shortBreakMin * 60;
+        return s.longBreakMin * 60;
+    }
 
-            if (tipoSessao === 'foco') {
-            estadoElemento.textContent = 'Foco';
-            } else if (tipoSessao === 'pausaCurta') {
-            estadoElemento.textContent = 'Pausa curta';
+    start(){
+        if(this.status === 'running') return;
+        
+        // Se está pausado, apenas reinicia o intervalo
+        this.status = 'running';
+        
+        // Limpa qualquer intervalo existente antes de criar um novo
+        if(this._intervalId) {
+            clearInterval(this._intervalId);
+            this._intervalId = null;
+        }
+        
+        this._intervalId = setInterval(() => this._tick(), 1000);
+    }
+
+    pause(){
+        if(this.status !== 'running') return;
+        this.status = 'paused';
+        if(this._intervalId) {
+            clearInterval(this._intervalId);
+            this._intervalId = null;
+        }
+    }
+
+    toggle(){
+        this.status === 'running' ? this.pause() : this.start();
+    }
+
+    reset(){
+        this.pause();
+        this.status = 'idle';
+        this.remaining = this.durationFor(this.sessionType);
+        this.onTick(this);
+    }
+
+    skip(){
+        this.pause();
+        this._advance(false);
+    }
+
+    _tick(){
+        this.remaining -= 1;
+        if(this.remaining <= 0){
+            // Pausa antes de avançar para evitar múltiplas execuções
+            this.pause();
+            this._advance(true);
+            return;
+        }
+        this.onTick(this);
+    }
+
+    _advance(completedNaturally){
+        const wasWork = this.sessionType === 'work';
+
+        if(wasWork){
+            this.cycleIndex += 1;
+            if(this.cycleIndex >= this.settings.cyclesBeforeLong){
+                this.sessionType = 'longBreak';
+                this.cycleIndex = 0;
             } else {
-            estadoElemento.textContent = 'Pausa longa';
+                this.sessionType = 'shortBreak';
             }
+        } else {
+            this.sessionType = 'work';
         }
 
-        function pausar() {
-            clearInterval(intervaloId);
-            intervaloId = null;
-            btnComecar.textContent = 'Começar';
-        }
+        this.remaining = this.durationFor(this.sessionType);
+        this.status = 'idle';
+        this.onTick(this);
 
-        function trocarSessao() {
-            if (tipoSessao === 'foco') {
-            pomodorosCompletos = pomodorosCompletos + 1;
-
-            if (pomodorosCompletos % CICLOS_ANTES_PAUSA_LONGA === 0) {
-                tipoSessao = 'pausaLonga';
-                segundosRestantes = DURACAO_PAUSA_LONGA;
-            } else {
-                tipoSessao = 'pausaCurta';
-                segundosRestantes = DURACAO_PAUSA_CURTA;
-            }
-            } else {
-            tipoSessao = 'foco';
-            segundosRestantes = DURACAO_FOCO;
-            }
-            atualizarTela();
-        }
-
-        function tick() {
-            segundosRestantes = segundosRestantes - 1;
-            atualizarTela();
-
-            if (segundosRestantes <= 0) {
-            pausar();
-            trocarSessao();
+        if(completedNaturally){
+            this.onComplete(wasWork);
+            // Só inicia automaticamente se não estiver pausado
+            if(this.status === 'idle') {
+                this.start();
             }
         }
+    }
+    }
 
-        btnComecar.addEventListener('click', function() {
-            const estaRodando = intervaloId !== null;
+    /* =========================================================
+    ÁUDIO — beep sintetizado, sem depender de arquivo externo
+    ========================================================= */
+    function playBeep(){
+    try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 660;
+        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+        osc.type = 'triangle';  // 'sine' (suave), 'square' (robusto), 'sawtooth' (áspero), 'triangle'
+    }catch(e){ /* áudio não disponível, seguimos em silêncio */ }
+    }
 
-            if (estaRodando) {
-            pausar();
+    function notify(title, body){
+    if(!('Notification' in window)) return;
+    if(Notification.permission === 'granted'){
+        new Notification(title, { body });
+    }
+    }
+
+    /* =========================================================
+    UI / RENDER
+    ========================================================= */
+    const RADIUS = 130;
+    const CIRC = 2 * Math.PI * RADIUS;
+    const ringEl = document.getElementById('ringProgress');
+    ringEl.style.strokeDasharray = `${CIRC}`;
+
+    const els = {
+    time: document.getElementById('timeDisplay'),
+    state: document.getElementById('stateLabel'),
+    cycleNote: document.getElementById('cycleNote'),
+    seeds: document.getElementById('seeds'),
+    start: document.getElementById('startBtn'),
+    reset: document.getElementById('resetBtn'),
+    skip: document.getElementById('skipBtn'),
+    stats: document.getElementById('statsLine'),
+    ticks: document.getElementById('ticks'),
+    workInput: document.getElementById('workInput'),
+    shortInput: document.getElementById('shortInput'),
+    longInput: document.getElementById('longInput'),
+    cyclesInput: document.getElementById('cyclesInput'),
+    };
+
+    const LABELS = { work: 'Foco', shortBreak: 'Pausa curta', longBreak: 'Pausa longa' };
+
+    function drawTicks(){
+    const frag = document.createDocumentFragment();
+    const cx = 150, cy = 150, rOuter = 143, rInner = 138, rInnerMajor = 132;
+    for(let i = 0; i < 60; i++){
+        const angle = (i / 60) * 2 * Math.PI;
+        const major = i % 5 === 0;
+        const x1 = cx + Math.cos(angle) * rOuter;
+        const y1 = cy + Math.sin(angle) * rOuter;
+        const x2 = cx + Math.cos(angle) * (major ? rInnerMajor : rInner);
+        const y2 = cy + Math.sin(angle) * (major ? rInnerMajor : rInner);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+        line.setAttribute('class', 'tick' + (major ? ' major' : ''));
+        line.setAttribute('stroke-width', major ? '2' : '1');
+        frag.appendChild(line);
+    }
+    els.ticks.appendChild(frag);
+    }
+    drawTicks();
+
+    function formatTime(totalSeconds){
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+    }
+
+    function renderSeeds(cyclesBeforeLong, cycleIndex){
+        // Definindo o SVG do tomate (pode ser customizado)
+        const tomatoSVG = `
+        <svg viewBox="0 0 30 30" width="28" height="28">
+            <!-- Corpo do tomate -->
+            <ellipse cx="15" cy="19" rx="10" ry="12" fill="%TOMATO_COLOR%"/>
+            <!-- Brilho -->
+            <ellipse cx="12" cy="15" rx="4" ry="5" fill="rgba(255,255,255,0.2)"/>
+            <!-- Sombra interna -->
+            <ellipse cx="16" cy="22" rx="6" ry="4" fill="rgba(180,40,20,0.15)"/>
+            <!-- Folha 1 -->
+            <path d="M11 8 C12 5, 14 4, 15 6" stroke="#4caf50" stroke-width="1.5" fill="none"/>
+            <!-- Folha 2 -->
+            <path d="M15 6 C16 4, 18 5, 19 8" stroke="#4caf50" stroke-width="1.5" fill="none"/>
+            <!-- Folha 3 (menor) -->
+            <path d="M13 7 C14 5, 16 5, 17 7" stroke="#66bb6a" stroke-width="1.5" fill="none"/>
+            <!-- Haste -->
+            <line x1="15" y1="6" x2="15" y2="3" stroke="#4caf50" stroke-width="2"/>
+            <!-- Círculo da haste -->
+            <circle cx="15" cy="3" r="1.5" fill="#4caf50"/>
+        </svg>`;
+        
+        els.seeds.innerHTML = '';
+        for(let i = 0; i < cyclesBeforeLong; i++){
+            const seed = document.createElement('div');
+            seed.className = 'seed' + (i < cycleIndex ? ' filled' : '');
+            
+            // Substitui a cor do tomate baseado no status
+            let svg = tomatoSVG;
+            if (i < cycleIndex) {
+                svg = svg.replace(/%TOMATO_COLOR%/, '#e8503a'); // Tomate maduro
             } else {
-            intervaloId = setInterval(tick, 1000);
-            btnComecar.textContent = 'Pausar';
+                svg = svg.replace(/%TOMATO_COLOR%/, '#6b2c22'); // Tomate verde/escuro
             }
-        });
+            
+            seed.innerHTML = svg;
+            els.seeds.appendChild(seed);
+        }
+    }
 
-        btnReiniciar.addEventListener('click', function() {
-            pausar();
-            tipoSessao = 'foco';
-            segundosRestantes = DURACAO_FOCO;
-            atualizarTela();
-        });
+    function todayKey(){
+    return new Date().toISOString().slice(0, 10);
+    }
 
-        atualizarTela();
+    function renderStats(stats){
+    const today = stats.byDay[todayKey()] || 0;
+    els.stats.innerHTML = `hoje: <b>${today}</b> pomodoros · total: <b>${stats.total}</b>`;
+    }
+
+    function render(engine){
+        const total = engine.durationFor(engine.sessionType);
+        const progressFraction = 1 - engine.remaining / total;
+
+        els.time.textContent = formatTime(engine.remaining);
+        els.state.textContent = LABELS[engine.sessionType];
+        els.state.className = 'state-label ' + engine.sessionType;
+        ringEl.setAttribute('class', 'ring-progress ' + engine.sessionType);
+        ringEl.style.strokeDashoffset = `${CIRC * (1 - progressFraction)}`;
+
+        const cyclesBeforeLong = engine.settings.cyclesBeforeLong;
+        els.cycleNote.textContent = engine.sessionType === 'work'
+            ? `ciclo ${engine.cycleIndex + 1} de ${cyclesBeforeLong}`
+            : 'respire um pouco';
+        
+        // CORREÇÃO AQUI:
+        // Se estiver em pausa longa, mostra todos os tomates preenchidos
+        let displayIndex = engine.cycleIndex;
+        if (engine.sessionType === 'longBreak') {
+            displayIndex = cyclesBeforeLong; // Mostra todos preenchidos
+        }
+        renderSeeds(cyclesBeforeLong, displayIndex);
+
+        els.start.textContent = engine.status === 'running' ? 'pausar' : 'começar';
+        document.title = `${formatTime(engine.remaining)} · ${LABELS[engine.sessionType]}`;
+    }
+
+    /* =========================================================
+    INICIALIZAÇÃO
+    ========================================================= */
+    const defaultSettings = { workMin: 25, shortBreakMin: 5, longBreakMin: 15, cyclesBeforeLong: 4 };
+    const settings = Object.assign({}, defaultSettings, Storage.loadSettings() || {});
+    let stats = Storage.loadStats();
+
+    els.workInput.value = settings.workMin;
+    els.shortInput.value = settings.shortBreakMin;
+    els.longInput.value = settings.longMin || settings.longBreakMin;
+    els.cyclesInput.value = settings.cyclesBeforeLong;
+
+    const engine = new TimerEngine(
+    settings,
+    (e) => render(e),
+    (wasWork) => {
+        playBeep();
+        if(wasWork){
+            stats.total += 1;
+            const key = todayKey();
+            stats.byDay[key] = (stats.byDay[key] || 0) + 1;
+            Storage.saveStats(stats);
+            renderStats(stats);
+            notify('Pomodoro concluído', 'Hora de uma pausa.');
+        } else {
+            notify('Pausa concluída', 'Hora de voltar ao foco.');
+        }
+    }
+    );
+
+    renderStats(stats);
+    render(engine);
+
+    els.start.addEventListener('click', () => {
+    if('Notification' in window && Notification.permission === 'default'){
+        Notification.requestPermission();
+    }
+    engine.toggle();
+    render(engine);
+    });
+    els.reset.addEventListener('click', () => engine.reset());
+    els.skip.addEventListener('click', () => engine.skip());
+
+    function persistSettingsFromInputs(){
+    settings.workMin = Math.max(1, parseInt(els.workInput.value, 10) || defaultSettings.workMin);
+    settings.shortBreakMin = Math.max(1, parseInt(els.shortInput.value, 10) || defaultSettings.shortBreakMin);
+    settings.longBreakMin = Math.max(1, parseInt(els.longInput.value, 10) || defaultSettings.longBreakMin);
+    settings.cyclesBeforeLong = Math.max(1, parseInt(els.cyclesInput.value, 10) || defaultSettings.cyclesBeforeLong);
+    Storage.saveSettings(settings);
+    if(engine.status === 'idle'){
+        engine.remaining = engine.durationFor(engine.sessionType);
+        render(engine);
+    }
+    }
+    [els.workInput, els.shortInput, els.longInput, els.cyclesInput].forEach(input => {
+    input.addEventListener('change', persistSettingsFromInputs);
+    });
     </script>
-    
 </body>
 </html>
