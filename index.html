@@ -355,6 +355,31 @@
         color: var(--tomate);
     }
 
+    .technique-description {
+        text-align: center;
+        font-family: var(--font-body);
+        font-size: 13px;
+        color: var(--ink-dim);
+        padding: 0 16px;
+        min-height: 60px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        transition: opacity 0.3s ease;
+    }
+
+    .technique-description p {
+        margin: 0;
+    }
+
+    .technique-description .benefit {
+        font-size: 12px;
+        color: var(--ink-dim);
+        opacity: 0.7;
+    }
+
 
     </style>
 </head>
@@ -367,6 +392,10 @@
         <button class="tab active" data-technique="pomodoro">Pomodoro</button>
         <button class="tab" data-technique="fiftyTwoSeventeen">52/17</button>
         <button class="tab" data-technique="deepWork">Deep Work</button>
+    </div>
+
+    <div class="technique-description" id="techniqueDescription">
+        <p></p>
     </div>
 
     <div class="state-label work" id="stateLabel">Foco</div>
@@ -416,6 +445,16 @@
 
         function applyTheme(technique) {
             document.body.className = technique;
+        }
+
+        function updateDescription(technique) {
+            const profile = PROFILES[technique];
+            if (!profile) return;
+            
+            document.getElementById('techniqueDescription').innerHTML = `
+                <p style="margin: 0;">${profile.description}</p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.7;">💡 ${profile.benefit}</p>
+            `;
         }
         
         /* =========================================================
@@ -793,7 +832,9 @@
                 shortBreakMin: 5, 
                 longBreakMin: 15, 
                 cyclesBeforeLong: 4,
-                theme: 'pomodoro'  // para controle de cor
+                theme: 'pomodoro',  // para controle de cor
+                description: '25 min de foco + 5 min de pausa a cada checkpoint. terminado o ciclo, é feito uma pausa de 15 minutos antes de começar um novo ciclo',
+                benefit: 'Ideal para tarefas que exigem concentração intensa'
             },
             fiftyTwoSeventeen: { 
                 label: '52/17', 
@@ -802,7 +843,9 @@
                 shortBreakMin: 17, 
                 longBreakMin: 17, 
                 cyclesBeforeLong: 999,
-                theme: 'fiftyTwoSeventeen'
+                theme: 'fiftyTwoSeventeen',
+                description: '52 min de foco + 17 min de pausa a cada ciclo',
+                benefit: 'Perfeito para tarefas mais longas e criativas'
             },
             
             deepWork: { 
@@ -812,7 +855,9 @@
                 shortBreakMin: 20,  // 20 minutos de pausa curta
                 longBreakMin: 30,   // 30 minutos de pausa longa
                 cyclesBeforeLong: 3, // 3 ciclos antes da pausa longa
-                theme: 'deepWork'   // cor personalizada
+                theme: 'deepWork',   // cor personalizada
+                description: '90 min de foco profundo + 20 min de pausa a cada concentração máxima.',
+                benefit: 'Para tarefas que exigem o máximo de concentração'
             }
         };
 
@@ -932,15 +977,17 @@
                 els.cyclesInput.disabled = false;
             }
 
-            // 👇 FORÇA A ATUALIZAÇÃO
-            console.log('🔵 currentTechnique antes do renderStats:', currentTechnique); // DEBUG
+            
             renderStats(stats);
-            render(engine); // 👈 ADICIONE ESTA LINHA TAMBÉM
+            render(engine); 
+            updateDescription(key);
         }
 
         [els.workInput, els.shortInput, els.longInput, els.cyclesInput].forEach(input => {
             input.addEventListener('change', persistSettingsFromInputs);
         });
+
+        updateDescription('pomodoro');
 
     </script>
 </body>
