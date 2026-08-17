@@ -26,8 +26,8 @@
         const DURACAO_PAUSA_LONGA = 15 * 60;
         const CICLOS_ANTES_PAUSA_LONGA = 4;
 
-        let tipoSessao = 'foco';
-        let pomodorosCompletos = 0
+        let tipoSessao = 'foco'; // 'foco', 'pausaCurta' ou 'pausaLonga'
+        let pomodorosCompletos = 0;
         let segundosRestantes = DURACAO_FOCO;
         let intervaloId = null;
 
@@ -39,12 +39,12 @@
             tempoElemento.textContent = minutosTexto + ':' + segundosTexto;
 
             if (tipoSessao === 'foco') {
-                estadoElemento.textContent = 'Foco';
+            estadoElemento.textContent = 'Foco';
             } else if (tipoSessao === 'pausaCurta') {
-                estadoElemento.textContent = 'Pausa curta';
+            estadoElemento.textContent = 'Pausa curta';
+            } else {
+            estadoElemento.textContent = 'Pausa longa';
             }
-
-            estadoElemento.textContent = tipoSessao === 'foco' ? 'Foco' : 'Pausa';
         }
 
         function pausar() {
@@ -55,11 +55,18 @@
 
         function trocarSessao() {
             if (tipoSessao === 'foco') {
-                tipoSessao = 'pausa';
-                segundosRestantes = DURACAO_PAUSA_CURTA;
+            pomodorosCompletos = pomodorosCompletos + 1;
+
+            if (pomodorosCompletos % CICLOS_ANTES_PAUSA_LONGA === 0) {
+                tipoSessao = 'pausaLonga';
+                segundosRestantes = DURACAO_PAUSA_LONGA;
             } else {
-                tipoSessao = 'foco';
-                segundosRestantes = DURACAO_FOCO;
+                tipoSessao = 'pausaCurta';
+                segundosRestantes = DURACAO_PAUSA_CURTA;
+            }
+            } else {
+            tipoSessao = 'foco';
+            segundosRestantes = DURACAO_FOCO;
             }
             atualizarTela();
         }
@@ -69,19 +76,19 @@
             atualizarTela();
 
             if (segundosRestantes <= 0) {
-                pausar();
-                trocarSessao();
+            pausar();
+            trocarSessao();
             }
-        }        
+        }
 
         btnComecar.addEventListener('click', function() {
             const estaRodando = intervaloId !== null;
 
             if (estaRodando) {
-                pausar();
+            pausar();
             } else {
-                intervaloId = setInterval(tick, 1000);
-                btnComecar.textContent = 'Pausar';
+            intervaloId = setInterval(tick, 1000);
+            btnComecar.textContent = 'Pausar';
             }
         });
 
