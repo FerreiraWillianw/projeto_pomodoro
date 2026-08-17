@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-    :root{
+        :root{
         --bg: #1b1815;
         --bg-raised: #24201b;
         --ink: #f2ede4;
@@ -19,6 +19,11 @@
         --folha-dim: #3a4230;
         --aviso: #e8b84b;
         --ring-track: #35302a;
+        
+        /* Cores para 52/17 */
+        --azul: #4a9eff;
+        --azul-dim: #1a3a6b;
+        
         --radius-lg: 28px;
         --radius-md: 14px;
         --font-display: 'Space Grotesk', sans-serif;
@@ -296,6 +301,59 @@
         background: var(--tomate);
         color: #1b1815;
     }
+    
+    /* Tema Pomodoro */
+    body.pomodoro {
+        --tomate: #e8503a;
+        --tomate-dim: #6b2c22;
+        --folha: #7a8b5e;
+        --folha-dim: #3a4230;
+    }
+
+    /* Tema 52/17 */
+    body.fiftyTwoSeventeen {
+        --tomate: #4a9eff;
+        --tomate-dim: #1a3a6b;
+        --folha: #4a9eff;
+        --folha-dim: #1a3a6b;
+    }
+
+    /* 👇 NOVA COR PARA DEEP WORK */
+    body.deepWork {
+        --tomate: #69b659;     
+        --tomate-dim: #2e5a23;
+        --folha: #69b659;
+        --folha-dim: #2e5a23;
+    }
+
+    /* Usa as variáveis */
+    .btn-primary {
+        background: var(--tomate);
+        color: #1b1815;
+        transition: background .2s ease;
+    }
+
+    .btn-primary:hover {
+        background: var(--tomate);
+        filter: brightness(1.1);
+    }
+
+    .tab.active {
+        background: var(--tomate);
+        color: #1b1815;
+    }
+
+    .stats-line b {
+        color: var(--tomate);
+    }
+
+    .ring-progress {
+        stroke: var(--tomate);
+    }
+
+    .state-label.work {
+        color: var(--tomate);
+    }
 
 
     </style>
@@ -308,6 +366,7 @@
     <div class="tabs" id="tabs">
         <button class="tab active" data-technique="pomodoro">Pomodoro</button>
         <button class="tab" data-technique="fiftyTwoSeventeen">52/17</button>
+        <button class="tab" data-technique="deepWork">Deep Work</button>
     </div>
 
     <div class="state-label work" id="stateLabel">Foco</div>
@@ -353,6 +412,12 @@
     </div>
 
     <script>
+
+
+        function applyTheme(technique) {
+            document.body.className = technique;
+        }
+        
         /* =========================================================
         CAMADA DE ARMAZENAMENTO
         Hoje: localStorage. No futuro, para sincronizar entre
@@ -378,24 +443,33 @@
                 const raw = localStorage.getItem(this.KEYS.stats);
                 if (raw) {
                     const data = JSON.parse(raw);
-                    // Se for o formato antigo (só total e byDay), converte
+                    
+                    // Se for formato antigo
                     if (data.total !== undefined && !data.pomodoro) {
                         return {
                             pomodoro: { total: data.total || 0, byDay: data.byDay || {} },
-                            fiftyTwoSeventeen: { total: 0, byDay: {} }
+                            fiftyTwoSeventeen: { total: 0, byDay: {} },
+                            deepWork: { total: 0, byDay: {} }  // ← GARANTA ISSO
                         };
                     }
+                    
+                    // Garante que deepWork existe
+                    if (!data.deepWork) {
+                        data.deepWork = { total: 0, byDay: {} };
+                    }
+                    
                     return data;
                 }
-                // Formato novo (vazio)
                 return { 
                     pomodoro: { total: 0, byDay: {} },
-                    fiftyTwoSeventeen: { total: 0, byDay: {} }
+                    fiftyTwoSeventeen: { total: 0, byDay: {} },
+                    deepWork: { total: 0, byDay: {} }  // ← GARANTA ISSO
                 };
             }catch(e){ 
                 return { 
                     pomodoro: { total: 0, byDay: {} },
-                    fiftyTwoSeventeen: { total: 0, byDay: {} }
+                    fiftyTwoSeventeen: { total: 0, byDay: {} },
+                    deepWork: { total: 0, byDay: {} }  // ← GARANTA ISSO
                 };
             }
         },
@@ -640,13 +714,27 @@
         }
 
         function renderStats(stats){
-            const technique = currentTechnique;  // ← Verifique se esta variável existe
+            const technique = currentTechnique;
             const key = todayKey();
             
-            const today = stats[technique].byDay[key] || 0;
-            const total = stats.pomodoro.total + stats.fiftyTwoSeventeen.total;
+            console.log('🔵 renderStats - técnica:', technique); // DEBUG
+            console.log('🔵 renderStats - stats:', stats); // DEBUG
             
-            const label = technique === 'pomodoro' ? 'pomodoros' : 'ciclos 52/17';
+            // Verifica se a técnica existe no stats
+            if (!stats[technique]) {
+                console.warn('⚠️ Técnica não encontrada no stats:', technique);
+                // Cria a técnica se não existir
+                stats[technique] = { total: 0, byDay: {} };
+            }
+            
+            const today = stats[technique].byDay[key] || 0;
+            
+            let total = 0;
+            for (let tech in stats) {
+                total += stats[tech].total || 0;
+            }
+            
+            const label = PROFILES[technique]?.label?.toLowerCase() || technique;
             els.stats.innerHTML = `hoje: <b>${today}</b> ${label} · total: <b>${total}</b>`;
         }
 
@@ -693,15 +781,27 @@
                 workMin: 25, 
                 shortBreakMin: 5, 
                 longBreakMin: 15, 
-                cyclesBeforeLong: 4 
+                cyclesBeforeLong: 4,
+                theme: 'pomodoro'  // para controle de cor
             },
             fiftyTwoSeventeen: { 
                 label: '52/17', 
-                eyebrow: 'TÉCNICA FIFTY TWO SEVENTEEN',
+                eyebrow: 'TÉCNICA 52/17',
                 workMin: 52, 
                 shortBreakMin: 17, 
                 longBreakMin: 17, 
-                cyclesBeforeLong: 999 
+                cyclesBeforeLong: 999,
+                theme: 'fiftyTwoSeventeen'
+            },
+            
+            deepWork: { 
+                label: 'Deep Work', 
+                eyebrow: 'TÉCNICA DEEP WORK',
+                workMin: 90,        // 90 minutos de foco
+                shortBreakMin: 20,  // 20 minutos de pausa curta
+                longBreakMin: 30,   // 30 minutos de pausa longa
+                cyclesBeforeLong: 3, // 3 ciclos antes da pausa longa
+                theme: 'deepWork'   // cor personalizada
             }
         };
 
@@ -772,6 +872,8 @@
         }
 
         function switchTechnique(key) {
+            console.log('🔵 Trocando para:', key); // DEBUG
+            
             currentTechnique = key;
             const profile = PROFILES[key];
 
@@ -793,34 +895,36 @@
                 tab.classList.toggle('active', tab.dataset.technique === key);
             });
 
-            const eyebrow = document.getElementById('eyebrow');
+            const eyebrow = document.querySelector('.eyebrow');
             if (eyebrow) {
-                eyebrow.textContent = key === 'pomodoro' ? 'TÉCNICA POMODORO' : 'TÉCNICA 52/17';
+                eyebrow.textContent = profile.eyebrow;
             }
 
+            document.body.className = key;
+
             const settingsDetails = document.querySelector('.settings');
+            const isLocked = key === 'fiftyTwoSeventeen' || key === 'deepWork';
             
-            if (key === 'fiftyTwoSeventeen') {
-                // Esconde completamente
+            if (isLocked) {
                 settingsDetails.style.display = 'none';
                 settingsDetails.classList.add('hidden');
-                
                 els.workInput.disabled = true;
                 els.shortInput.disabled = true;
                 els.longInput.disabled = true;
                 els.cyclesInput.disabled = true;
             } else {
-                // Mostra novamente
                 settingsDetails.style.display = '';
                 settingsDetails.classList.remove('hidden');
-                
                 els.workInput.disabled = false;
                 els.shortInput.disabled = false;
                 els.longInput.disabled = false;
                 els.cyclesInput.disabled = false;
             }
 
+            // 👇 FORÇA A ATUALIZAÇÃO
+            console.log('🔵 currentTechnique antes do renderStats:', currentTechnique); // DEBUG
             renderStats(stats);
+            render(engine); // 👈 ADICIONE ESTA LINHA TAMBÉM
         }
 
         [els.workInput, els.shortInput, els.longInput, els.cyclesInput].forEach(input => {
